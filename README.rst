@@ -1,5 +1,13 @@
 .. raw:: html
 
+Cambios en este fork
+********************
+- Implementation of `CLOCK_THREAD_CPUTIME_ID` to support thread-specific CPU time clocks taking advantage of Zephyrs runtime stats.
+- Lightweight library for performance measurements
+- Library for `timespec` operations & `eat(ts)`
+
+
+
    <a href="https://www.zephyrproject.org">
      <p align="center">
        <picture>
