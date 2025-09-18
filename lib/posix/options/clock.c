@@ -14,6 +14,7 @@
 #include <zephyr/posix/unistd.h>
 #include <zephyr/internal/syscall_handler.h>
 #include <zephyr/spinlock.h>
+#include <zephyr/kernel/thread.h>
 
 /*
  * `k_uptime_get` returns a timestamp based on an always increasing
@@ -75,6 +76,24 @@ int clock_gettime(clockid_t clock_id, struct timespec *ts)
 		(void)__posix_clock_get_base(clock_id, &base);
 		break;
 
+	case CLOCK_THREAD_CPUTIME_ID:
+#ifdef CONFIG_THREAD_RUNTIME_STATS && CONFIG_SCHED_THREAD_USAGE
+		k_tid_t thread = k_current_get();
+		//if (!k_thread_runtime_stats_enabled(thread)) {
+		//	errno = EINVAL;
+		//	return -1;
+		//}
+
+		k_thread_runtime_stats_t stats;
+		k_thread_runtime_stats_get(thread, &stats);
+		uint64_t cycles = stats.execution_cycles;
+
+		uint64_t ns = k_cyc_to_ns_floor64(cycles);
+
+		ts->tv_sec = ns / NSEC_PER_SEC;
+		ts->tv_nsec = ns % NSEC_PER_SEC;
+		return 0;
+#endif
 	default:
 		errno = EINVAL;
 		return -1;
@@ -84,9 +103,9 @@ int clock_gettime(clockid_t clock_id, struct timespec *ts)
 	uint64_t elapsed_secs = ticks / CONFIG_SYS_CLOCK_TICKS_PER_SEC;
 	uint64_t nremainder = ticks - elapsed_secs * CONFIG_SYS_CLOCK_TICKS_PER_SEC;
 
-	ts->tv_sec = (time_t) elapsed_secs;
+	ts->tv_sec = (time_t)elapsed_secs;
 	/* For ns 32 bit conversion can be used since its smaller than 1sec. */
-	ts->tv_nsec = (int32_t) k_ticks_to_ns_floor32(nremainder);
+	ts->tv_nsec = (int32_t)k_ticks_to_ns_floor32(nremainder);
 
 	ts->tv_sec += base.tv_sec;
 	ts->tv_nsec += base.tv_nsec;
@@ -144,8 +163,7 @@ int clock_settime(clockid_t clock_id, const struct timespec *tp)
 	}
 
 	uint64_t elapsed_nsecs = k_ticks_to_ns_floor64(k_uptime_ticks());
-	int64_t delta = (int64_t)NSEC_PER_SEC * tp->tv_sec + tp->tv_nsec
-		- elapsed_nsecs;
+	int64_t delta = (int64_t)NSEC_PER_SEC * tp->tv_sec + tp->tv_nsec - elapsed_nsecs;
 
 	base.tv_sec = delta / NSEC_PER_SEC;
 	base.tv_nsec = delta % NSEC_PER_SEC;
@@ -215,16 +233,12 @@ static int __z_clock_nanosleep(clockid_t clock_id, int flags, const struct times
 		errno = EINVAL;
 		return -1;
 	}
-
-	if ((flags & TIMER_ABSTIME) == 0 &&
-	    unlikely(rqtp->tv_sec >= ULLONG_MAX / NSEC_PER_SEC)) {
-
-		ns = rqtp->tv_nsec + NSEC_PER_SEC
-			+ k_sleep(K_SECONDS(rqtp->tv_sec - 1)) * NSEC_PER_MSEC;
+	if ((flags & TIMER_ABSTIME) == 0 && unlikely(rqtp->tv_sec >= ULLONG_MAX / NSEC_PER_SEC)) {
+		ns = rqtp->tv_nsec + NSEC_PER_SEC +
+		     k_sleep(K_SECONDS(rqtp->tv_sec - 1)) * NSEC_PER_MSEC;
 	} else {
 		ns = rqtp->tv_sec * NSEC_PER_SEC + rqtp->tv_nsec;
 	}
-
 	uptime_ns = k_ticks_to_ns_ceil64(sys_clock_tick_get());
 
 	if (flags & TIMER_ABSTIME && clock_id == CLOCK_REALTIME) {
@@ -236,12 +250,19 @@ static int __z_clock_nanosleep(clockid_t clock_id, int flags, const struct times
 	if ((flags & TIMER_ABSTIME) == 0) {
 		ns += uptime_ns;
 	}
+  // añadimos este caso -> eliminar 
+  if (ns == 0) {
+    k_sleep(K_MSEC(0));
+  }
+  // eliminar bloque anterior
 
 	if (ns <= uptime_ns) {
+    // printk("\nns %lld | uptime ns: %lld , goto rtmp_upadte ", ns, uptime_ns);
 		goto do_rmtp_update;
 	}
 
 	us = DIV_ROUND_UP(ns, NSEC_PER_USEC);
+  // printk("us %lld | ns %lld | uptime %lld\n", us, ns, uptime_ns);
 	do {
 		us = k_sleep(K_TIMEOUT_ABS_US(us)) * 1000;
 	} while (us != 0);

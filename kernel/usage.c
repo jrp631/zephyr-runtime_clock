@@ -272,6 +272,20 @@ int k_thread_runtime_stats_disable(k_tid_t  thread)
 
 	return 0;
 }
+
+//check if runtime stats are enabled
+int k_thread_runtime_stats_enabled(k_tid_t thread)
+{
+	k_spinlock_key_t  key;
+
+	CHECKIF(thread == NULL) {
+		return -EINVAL;
+	}
+	key = k_spin_lock(&usage_lock);
+	int enabled = thread->base.usage.track_usage;
+	k_spin_unlock(&usage_lock, key);
+	return enabled;
+}
 #endif /* CONFIG_SCHED_THREAD_USAGE_ANALYSIS */
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ALL
