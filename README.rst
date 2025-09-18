@@ -1,13 +1,5 @@
 .. raw:: html
 
-Cambios en este fork
-********************
-- Implementation of `CLOCK_THREAD_CPUTIME_ID` to support thread-specific CPU time clocks taking advantage of Zephyrs runtime stats.
-- Lightweight library for performance measurements
-- Library for `timespec` operations & `eat(ts)`
-
-
-
    <a href="https://www.zephyrproject.org">
      <p align="center">
        <picture>
@@ -40,6 +32,12 @@ LED wearables to sophisticated smart watches and IoT wireless gateways.
 The Zephyr kernel supports multiple architectures, including ARM (Cortex-A,
 Cortex-R, Cortex-M), Intel x86, ARC, Nios II, Tensilica Xtensa, and RISC-V,
 SPARC, MIPS, and a large number of `supported boards`_.
+
+Cambios en este fork
+********************
+- Implementation of `CLOCK_THREAD_CPUTIME_ID` to support thread-specific CPU time clocks taking advantage of Zephyrs runtime stats.
+- Lightweight library for performance measurements
+- Library for `timespec` operations & `eat(ts)`
 
 .. below included in doc/introduction/introduction.rst
 
